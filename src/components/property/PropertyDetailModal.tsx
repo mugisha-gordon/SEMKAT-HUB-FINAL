@@ -219,11 +219,11 @@ const PropertyDetailModal = ({ property, open, onClose }: PropertyDetailModalPro
                 )}
                 {supportsVirtualTour && (
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-lg bg-sky/10 flex items-center justify-center">
-                      <Move3D className="h-5 w-5 text-sky" />
+                    <div className="w-10 h-10 rounded-lg bg-semkat-sky-light flex items-center justify-center">
+                      <Move3D className="h-5 w-5 text-semkat-sky" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sky">3D Tour</div>
+                      <div className="font-semibold text-semkat-sky">3D Tour</div>
                       <div className="text-xs text-muted-foreground">Available</div>
                     </div>
                   </div>
