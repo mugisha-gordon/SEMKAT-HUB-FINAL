@@ -1,5 +1,4 @@
 import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -65,8 +64,6 @@ const Settings = () => {
           </Card>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };

@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, Grid3X3, List, MapPin, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 import PropertyCard from '@/components/property/PropertyCard';
 import PropertyDetailModal from '@/components/property/PropertyDetailModal';
 import { Button } from '@/components/ui/button';
@@ -286,8 +285,6 @@ const Properties = () => {
           )}
         </div>
       </main>
-
-      <Footer />
 
       <PropertyDetailModal
         property={selectedProperty}

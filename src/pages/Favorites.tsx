@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import PropertyCard from "@/components/property/PropertyCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,7 +57,7 @@ const Favorites = () => {
               </div>
               <h3 className="font-heading text-2xl font-semibold">No favorites yet</h3>
               <p className="text-white/70 max-w-lg mx-auto">
-                Tap the heart icon on any property to keep it here. We’ll sync this with your account once you sign in.
+                Tap the heart icon on any property to keep it here. We'll sync this with your account once you sign in.
               </p>
               <div className="flex justify-center gap-3">
                 <Button variant="hero">Browse properties</Button>
@@ -70,8 +69,6 @@ const Favorites = () => {
           )}
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };
