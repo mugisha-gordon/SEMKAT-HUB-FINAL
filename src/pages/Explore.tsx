@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Play, Pause, Heart, MessageCircle, Share2, Sparkles } from "lucide-react";
+import { Heart, MessageCircle, Share2, Sparkles, Volume2, VolumeX, ChevronUp, ChevronDown } from "lucide-react";
 
 type Clip = {
   id: string;
@@ -53,119 +52,231 @@ const Explore = () => {
         likes: 96,
         comments: 9,
       },
+      {
+        id: "c4",
+        title: "Luxury penthouse with city views",
+        location: "Nakasero, Kampala",
+        author: "David Ssempijja",
+        role: "agent",
+        videoUrl: "https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4",
+        coverUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200",
+        likes: 312,
+        comments: 47,
+      },
     ],
     [],
   );
 
-  const [activeId, setActiveId] = useState(clips[0]?.id);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+
+  const goToSlide = (index: number) => {
+    if (index >= 0 && index < clips.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const handleScroll = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY > 0 && currentIndex < clips.length - 1) {
+      goToSlide(currentIndex + 1);
+    } else if (e.deltaY < 0 && currentIndex > 0) {
+      goToSlide(currentIndex - 1);
+    }
+  };
+
+  // Touch handling for mobile
+  const touchStartY = useRef(0);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const deltaY = touchStartY.current - e.changedTouches[0].clientY;
+    if (Math.abs(deltaY) > 50) {
+      if (deltaY > 0 && currentIndex < clips.length - 1) {
+        goToSlide(currentIndex + 1);
+      } else if (deltaY < 0 && currentIndex > 0) {
+        goToSlide(currentIndex - 1);
+      }
+    }
+  };
+
+  // Play/pause videos based on current index
+  useEffect(() => {
+    videoRefs.current.forEach((video, index) => {
+      if (video) {
+        if (index === currentIndex) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+          video.currentTime = 0;
+        }
+      }
+    });
+  }, [currentIndex]);
+
+  const toggleLike = (clipId: string) => {
+    setLiked(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clipId)) {
+        newSet.delete(clipId);
+      } else {
+        newSet.add(clipId);
+      }
+      return newSet;
+    });
+  };
+
+  const currentClip = clips[currentIndex];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-white">
       <Header />
 
-      <main className="flex-1 pb-12">
-        <section className="relative overflow-hidden py-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(249,115,22,0.25),transparent_40%),radial-gradient(circle_at_75%_15%,rgba(14,165,233,0.25),transparent_35%)]" />
-          <div className="container relative flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center border border-white/15">
-              <Sparkles className="h-6 w-6 text-orange-300" />
+      <main className="flex-1 relative overflow-hidden">
+        {/* TikTok-style vertical snap scroll container */}
+        <div
+          ref={containerRef}
+          className="h-[calc(100vh-80px)] overflow-hidden relative"
+          onWheel={handleScroll}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Video slides */}
+          <div
+            className="transition-transform duration-500 ease-out h-full"
+            style={{ transform: `translateY(-${currentIndex * 100}%)` }}
+          >
+            {clips.map((clip, index) => (
+              <div key={clip.id} className="h-full w-full relative flex items-center justify-center">
+                {/* Video */}
+                <video
+                  ref={el => { videoRefs.current[index] = el; }}
+                  className="h-full w-full object-cover"
+                  src={clip.videoUrl}
+                  poster={clip.coverUrl}
+                  muted={muted}
+                  loop
+                  playsInline
+                  controls={false}
+                />
+                
+                {/* Gradient overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+                
+                {/* Content overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 pb-24">
+                  <Badge 
+                    variant="outline" 
+                    className="border-white/40 text-white/90 mb-3 bg-black/30 backdrop-blur-sm"
+                  >
+                    {clip.role === "agent" ? "Agent" : "User"} • {clip.location}
+                  </Badge>
+                  <h3 className="font-heading text-2xl font-bold mb-1 drop-shadow-lg">{clip.title}</h3>
+                  <p className="text-white/80 text-sm">@{clip.author}</p>
+                </div>
+
+                {/* Right side action buttons */}
+                <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-12 w-12 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 ${
+                      liked.has(clip.id) ? 'text-red-500' : 'text-white'
+                    }`}
+                    onClick={() => toggleLike(clip.id)}
+                  >
+                    <Heart className={`h-6 w-6 ${liked.has(clip.id) ? 'fill-current' : ''}`} />
+                  </Button>
+                  <span className="text-xs text-white/80">{clip.likes + (liked.has(clip.id) ? 1 : 0)}</span>
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50"
+                  >
+                    <MessageCircle className="h-6 w-6" />
+                  </Button>
+                  <span className="text-xs text-white/80">{clip.comments}</span>
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50"
+                  >
+                    <Share2 className="h-6 w-6" />
+                  </Button>
+                  <span className="text-xs text-white/80">Share</span>
+                </div>
+
+                {/* Sound toggle */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50"
+                  onClick={() => setMuted((m) => !m)}
+                >
+                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Navigation indicators */}
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
+            {clips.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-1.5 h-8 rounded-full transition-all ${
+                  index === currentIndex 
+                    ? 'bg-white' 
+                    : 'bg-white/30 hover:bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Navigation arrows */}
+          {currentIndex > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-20 left-1/2 -translate-x-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50"
+              onClick={() => goToSlide(currentIndex - 1)}
+            >
+              <ChevronUp className="h-6 w-6" />
+            </Button>
+          )}
+          {currentIndex < clips.length - 1 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute bottom-20 left-1/2 -translate-x-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 animate-bounce"
+              onClick={() => goToSlide(currentIndex + 1)}
+            >
+              <ChevronDown className="h-6 w-6" />
+            </Button>
+          )}
+
+          {/* Header badge */}
+          <div className="absolute top-4 left-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center border border-white/15">
+              <Sparkles className="h-5 w-5 text-orange-300" />
             </div>
             <div>
-              <p className="text-white/70 text-sm">Immersive video feed</p>
-              <h1 className="font-heading text-3xl font-bold">Explore</h1>
+              <h1 className="font-heading text-lg font-bold">Explore</h1>
+              <p className="text-white/60 text-xs">{currentIndex + 1} / {clips.length}</p>
             </div>
           </div>
-        </section>
-
-        <section className="container pb-10">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              {clips.map((clip) => {
-                const isActive = activeId === clip.id;
-                return (
-                  <Card
-                    key={clip.id}
-                    className="bg-white/5 border-white/10 text-white overflow-hidden"
-                    onMouseEnter={() => setActiveId(clip.id)}
-                  >
-                    <div className="relative aspect-[9/16] sm:aspect-[16/9]">
-                      <video
-                        key={clip.id}
-                        className="w-full h-full object-cover"
-                        src={clip.videoUrl}
-                        poster={clip.coverUrl}
-                        autoPlay={isActive}
-                        muted={muted}
-                        loop
-                        playsInline
-                        controls={false}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-                      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-                        <div>
-                          <Badge variant="outline" className="border-white/30 text-white/90 mb-2">
-                            {clip.role === "agent" ? "Agent" : "User"} • {clip.location}
-                          </Badge>
-                          <h3 className="font-heading text-xl font-semibold">{clip.title}</h3>
-                          <p className="text-white/70 text-sm">{clip.author}</p>
-                        </div>
-                        <div className="flex flex-col items-center gap-3">
-                          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                            <Heart className="h-5 w-5" />
-                            <span className="sr-only">Like</span>
-                          </Button>
-                          <span className="text-xs text-white/70">{clip.likes}</span>
-                          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                            <MessageCircle className="h-5 w-5" />
-                            <span className="sr-only">Comment</span>
-                          </Button>
-                          <span className="text-xs text-white/70">{clip.comments}</span>
-                          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                            <Share2 className="h-5 w-5" />
-                            <span className="sr-only">Share</span>
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="border-white/30 text-white bg-black/30 hover:bg-black/50"
-                          onClick={() => setMuted((m) => !m)}
-                        >
-                          {muted ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-
-            <div className="space-y-4">
-              <Card className="bg-white/5 border-white/10 text-white p-5">
-                <h3 className="font-heading text-xl font-semibold mb-2">Post a video</h3>
-                <p className="text-white/70 text-sm mb-4">
-                  Agents and users can upload property walk-throughs, drone shots, or neighborhood tours.
-                </p>
-                <Button variant="hero" className="w-full">Upload</Button>
-              </Card>
-              <Card className="bg-gradient-to-br from-orange-500/20 to-sky-500/20 border-white/10 text-white p-5">
-                <h4 className="font-heading font-semibold text-lg mb-2">Pro tips</h4>
-                <ul className="text-sm text-white/80 space-y-2">
-                  <li>• Keep clips between 10–60s, vertical or horizontal.</li>
-                  <li>• Show documents or verification badges to build trust.</li>
-                  <li>• Include voice-over for remote buyers.</li>
-                </ul>
-              </Card>
-            </div>
-          </div>
-        </section>
+        </div>
       </main>
     </div>
   );
 };
 
 export default Explore;
-

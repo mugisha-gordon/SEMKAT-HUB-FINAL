@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Lock, UserPlus } from "lucide-react";
+import { Sparkles, Lock, UserPlus, Info } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"user" | "agent">("user");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
@@ -32,9 +32,13 @@ const Auth = () => {
   };
 
   const handleRegister = async () => {
+    if (!fullName.trim()) {
+      setError("Please enter your full name");
+      return;
+    }
     setError(null);
     setLoading(true);
-    const { error: err } = await signUp(email, password, role);
+    const { error: err } = await signUp(email, password, fullName);
     setLoading(false);
     if (err) {
       setError(err);
@@ -56,15 +60,31 @@ const Auth = () => {
                 Sign in or create an account
               </h1>
               <p className="text-white/70">
-                Use your email to access Semkat. Agents can register to publish listings. Admins sign in with admin credentials to manage the platform.
+                Create an account to browse properties, save favorites, and contact agents.
               </p>
-              <div className="mt-6 flex gap-3 text-sm text-white/70">
-                <span className="inline-flex items-center gap-2">
+              <div className="mt-6 space-y-3 text-sm text-white/70">
+                <span className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-orange-300" /> Secure email login
                 </span>
-                <span className="inline-flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-sky-300" /> Role-based access
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-sky-300" /> Save your favorite properties
                 </span>
+                <span className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-green-300" /> Connect with verified agents
+                </span>
+              </div>
+              
+              {/* Agent registration notice */}
+              <div className="mt-8 p-4 bg-semkat-orange/10 border border-semkat-orange/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-semkat-orange mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">Want to become an agent?</h4>
+                    <p className="text-white/70 text-sm">
+                      Agent registration is managed by administrators. Contact Semkat Group to apply for an agent account.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -109,9 +129,20 @@ const Auth = () => {
                 </TabsContent>
 
                 <TabsContent value="register" className="space-y-4 pt-4">
-                  <div className="flex items-center gap-2 text-sm text-white/70">
+                  <div className="flex items-center gap-2 text-sm text-white/70 mb-2">
                     <UserPlus className="h-4 w-4 text-sky-300" />
-                    Choose role: standard users can browse; agents can post properties.
+                    Create an account to browse and save properties
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="John Doe"
+                      className="bg-white/10 border-white/20 text-white"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email-register">Email</Label>
@@ -120,7 +151,7 @@ const Auth = () => {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="agent@semkat.ug"
+                      placeholder="you@example.com"
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -132,27 +163,10 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
+                      minLength={6}
                       className="bg-white/10 border-white/20 text-white"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={role === "user" ? "hero" : "outline"}
-                        onClick={() => setRole("user")}
-                      >
-                        Buyer / Investor
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={role === "agent" ? "hero" : "outline"}
-                        onClick={() => setRole("agent")}
-                      >
-                        Agent
-                      </Button>
-                    </div>
+                    <p className="text-xs text-white/50">Minimum 6 characters</p>
                   </div>
                   {error && (
                     <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2">
@@ -160,7 +174,7 @@ const Auth = () => {
                     </div>
                   )}
                   <Button variant="hero" className="w-full" onClick={handleRegister} disabled={loading}>
-                    {loading ? "Creating account..." : "Register"}
+                    {loading ? "Creating account..." : "Create Account"}
                   </Button>
                 </TabsContent>
               </Tabs>
@@ -173,4 +187,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
