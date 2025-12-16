@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Move3D, LayoutGrid, MapPin, Play, Pause } from 'lucide-react';
+import { Move3D, LayoutGrid, MapPin, Play, Pause, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import VirtualTour3D from './VirtualTour3D';
 import InteractiveFloorPlan from './InteractiveFloorPlan';
+import LandPlotMap from '@/components/land/LandPlotMap';
 import { Property } from '@/types/property';
 
 interface PropertyVisualizationProps {
@@ -18,7 +19,8 @@ const PropertyVisualization = ({ property }: PropertyVisualizationProps) => {
   const has3DTour = property.type === 'residential' || property.type === 'commercial' || property.type === 'rental';
   const hasFloorPlan = property.type === 'residential' || property.type === 'rental';
   const hasVideoTour = property.images.length > 0;
-  const hasDroneView = property.type === 'land' || property.type === 'agricultural';
+  const isLandProperty = property.type === 'land' || property.type === 'agricultural';
+  const hasDroneView = isLandProperty;
 
   // Sample drone/satellite imagery for land properties
   const droneImages = [
@@ -27,10 +29,22 @@ const PropertyVisualization = ({ property }: PropertyVisualizationProps) => {
     'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&h=800&fit=crop',
   ];
 
+  // Set default tab based on property type
+  const defaultTab = isLandProperty ? 'map' : '3d';
+
   return (
     <div className="space-y-4">
-      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+      <Tabs value={currentTab || defaultTab} onValueChange={setCurrentTab} className="w-full">
         <TabsList className="w-full justify-start bg-muted/50 p-1 h-auto flex-wrap gap-1">
+          {isLandProperty && (
+            <TabsTrigger 
+              value="map" 
+              className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Map className="h-4 w-4" />
+              Plot Map
+            </TabsTrigger>
+          )}
           {has3DTour && (
             <TabsTrigger 
               value="3d" 
@@ -66,6 +80,16 @@ const PropertyVisualization = ({ property }: PropertyVisualizationProps) => {
             Video Tour
           </TabsTrigger>
         </TabsList>
+
+        {/* Land Plot Map Tab */}
+        {isLandProperty && (
+          <TabsContent value="map" className="mt-4">
+            <LandPlotMap 
+              estateName={property.title}
+              location={property.location.district + ', ' + property.location.region}
+            />
+          </TabsContent>
+        )}
 
         {has3DTour && (
           <TabsContent value="3d" className="mt-4">
@@ -126,7 +150,7 @@ const PropertyVisualization = ({ property }: PropertyVisualizationProps) => {
                   <div className="text-xs text-muted-foreground">Boundaries</div>
                 </div>
                 <div className="bg-card rounded-lg border p-3 text-center">
-                  <div className="text-lg font-bold text-sky">GPS</div>
+                  <div className="text-lg font-bold text-semkat-sky">GPS</div>
                   <div className="text-xs text-muted-foreground">Coordinates</div>
                 </div>
                 <div className="bg-card rounded-lg border p-3 text-center">
