@@ -46,11 +46,14 @@ const Header = () => {
 
       {/* Main header */}
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <img src="/LOGO.svg" alt="Semkat logo" className="h-10 w-10 rounded-lg object-contain bg-white shadow" />
-          <span className="font-heading text-xl font-bold text-foreground">
-            Semkat
-          </span>
+        <Link to="/" className="flex items-center gap-3">
+          <img src="/LOGO.svg" alt="Semkat Group Uganda Limited" className="h-12 w-auto object-contain" />
+          <div className="hidden sm:flex flex-col">
+            <span className="font-heading text-lg font-bold text-foreground leading-tight">
+              Semkat Group
+            </span>
+            <span className="text-xs text-muted-foreground">Uganda Limited</span>
+          </div>
         </Link>
 
         {/* Desktop navigation */}

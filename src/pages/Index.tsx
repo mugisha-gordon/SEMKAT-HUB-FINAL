@@ -1,5 +1,4 @@
 import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 import HeroSection from '@/components/home/HeroSection';
 import CategorySection from '@/components/home/CategorySection';
 import FeaturedProperties from '@/components/home/FeaturedProperties';
@@ -19,7 +18,6 @@ const Index = () => {
         <AgentsSection />
         <CTASection />
       </main>
-      <Footer />
     </div>
   );
 };
