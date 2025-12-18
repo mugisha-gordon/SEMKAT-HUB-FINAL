@@ -51,24 +51,37 @@ const Header = () => {
               Kampala, Uganda
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <Link to="/favorites" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-              <Heart className="h-3.5 w-3.5" />
-              Saved
-            </Link>
-            <Link to="/notifications" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-              <Bell className="h-3.5 w-3.5" />
-              Alerts
-            </Link>
-          </div>
+          {/* Only show Saved and Alerts when logged in */}
+          {user && (
+            <div className="flex items-center gap-4">
+              <Link to="/favorites" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                <Heart className="h-3.5 w-3.5" />
+                Saved
+              </Link>
+              <Link to="/notifications" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                <Bell className="h-3.5 w-3.5" />
+                Alerts
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main header */}
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/LOGO.svg" alt="Semkat Group Uganda Limited" className="h-12 w-auto object-contain" />
-          <div className="hidden sm:flex flex-col">
+          <div className="flex items-center justify-center h-14 w-14 bg-gradient-hero rounded-xl shadow-md">
+            <img 
+              src="/LOGO.svg" 
+              alt="Semkat Group Uganda Limited" 
+              className="h-10 w-10 object-contain"
+              onError={(e) => {
+                // Fallback if SVG doesn't load
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+          <div className="flex flex-col">
             <span className="font-heading text-lg font-bold text-foreground leading-tight">
               Semkat Group
             </span>
