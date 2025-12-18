@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -43,17 +44,21 @@ const CTASection = () => {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="xl" className="bg-background text-primary hover:bg-background/90 shadow-xl group">
-              Browse Properties
-              <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button 
-              size="xl" 
-              variant="outline" 
-              className="border-2 border-primary-foreground text-primary-foreground bg-transparent hover:bg-primary-foreground hover:text-primary"
-            >
-              List Your Property
-            </Button>
+            <Link to="/properties">
+              <Button size="xl" className="bg-background text-primary hover:bg-background/90 shadow-xl group">
+                Browse Properties
+                <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button 
+                size="xl" 
+                variant="outline" 
+                className="border-2 border-primary-foreground text-primary-foreground bg-transparent hover:bg-primary-foreground hover:text-primary"
+              >
+                List Your Property
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

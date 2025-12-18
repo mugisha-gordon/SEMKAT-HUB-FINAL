@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Home, Building, TreePine, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,8 +13,20 @@ const propertyTypes = [
 ];
 
 const HeroSection = () => {
+  const navigate = useNavigate();
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('location', searchQuery);
+    if (activeType !== 'all') params.set('type', activeType);
+    navigate(`/properties?${params.toString()}`);
+  };
+
+  const handleLocationClick = (location: string) => {
+    navigate(`/properties?location=${encodeURIComponent(location)}`);
+  };
 
   return (
     <section className="relative min-h-[600px] lg:min-h-[700px] overflow-hidden">
@@ -85,7 +98,7 @@ const HeroSection = () => {
                   className="w-full h-12 pl-12 pr-4 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
-              <Button variant="hero" size="lg" className="h-12 px-8">
+              <Button variant="hero" size="lg" className="h-12 px-8" onClick={handleSearch}>
                 <Search className="h-5 w-5 mr-2" />
                 Search
               </Button>
@@ -97,6 +110,7 @@ const HeroSection = () => {
               {['Kampala', 'Entebbe', 'Mukono', 'Wakiso', 'Jinja'].map((location) => (
                 <button
                   key={location}
+                  onClick={() => handleLocationClick(location)}
                   className="text-xs px-3 py-1 rounded-full bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {location}

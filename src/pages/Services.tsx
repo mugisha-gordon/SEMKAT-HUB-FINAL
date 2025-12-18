@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { 
   FileText, HardHat, CreditCard, Car, CheckCircle, 
   ArrowRight, Phone, MessageCircle 
@@ -80,6 +81,14 @@ const services = [
 ];
 
 const Services = () => {
+  const { serviceId } = useParams();
+  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  useEffect(() => {
+    if (serviceId && sectionRefs.current[serviceId]) {
+      sectionRefs.current[serviceId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [serviceId]);
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -110,6 +119,7 @@ const Services = () => {
                 return (
                   <div
                     key={service.id}
+                    ref={(el) => { sectionRefs.current[service.id] = el; }}
                     className={`grid lg:grid-cols-2 gap-8 items-center ${
                       isEven ? '' : 'lg:grid-flow-dense'
                     }`}
@@ -137,14 +147,18 @@ const Services = () => {
                       </div>
 
                       <div className="flex gap-3">
-                        <Button variant="hero">
-                          Learn More
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                        <Button variant="outline">
-                          <Phone className="h-4 w-4 mr-2" />
-                          Contact Us
-                        </Button>
+                        <Link to="/about">
+                          <Button variant="hero">
+                            Learn More
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Button>
+                        </Link>
+                        <a href="tel:+256700123456">
+                          <Button variant="outline">
+                            <Phone className="h-4 w-4 mr-2" />
+                            Contact Us
+                          </Button>
+                        </a>
                       </div>
                     </div>
 
@@ -179,14 +193,18 @@ const Services = () => {
                 Our expert team is ready to guide you through the best options for your specific needs.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="hero" size="lg">
-                  <MessageCircle className="h-5 w-5 mr-2" />
-                  Chat with Us
-                </Button>
-                <Button variant="outline" size="lg">
-                  <Phone className="h-5 w-5 mr-2" />
-                  Call +256 700 123 456
-                </Button>
+                <a href="https://wa.me/256700123456" target="_blank" rel="noopener noreferrer">
+                  <Button variant="hero" size="lg">
+                    <MessageCircle className="h-5 w-5 mr-2" />
+                    Chat with Us
+                  </Button>
+                </a>
+                <a href="tel:+256700123456">
+                  <Button variant="outline" size="lg">
+                    <Phone className="h-5 w-5 mr-2" />
+                    Call +256 700 123 456
+                  </Button>
+                </a>
               </div>
             </Card>
           </div>
