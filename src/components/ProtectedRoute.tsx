@@ -12,8 +12,11 @@ const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        Checking access...
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-semkat-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Checking access...</p>
+        </div>
       </div>
     );
   }
@@ -22,8 +25,15 @@ const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) => {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
-  if (requireRole && role !== requireRole) {
-    return <Navigate to="/" replace />;
+  // If a specific role is required, check for it
+  // Admin can access everything
+  if (requireRole) {
+    if (role === 'admin') {
+      return <>{children}</>;
+    }
+    if (role !== requireRole) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <>{children}</>;

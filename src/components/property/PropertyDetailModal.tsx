@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { 
   X, MapPin, Phone, Mail, Calendar, Heart, Share2, 
   ChevronLeft, ChevronRight, Bed, Bath, Maximize, 
-  FileCheck, Star, MessageCircle, Move3D, Video, Eye
+  FileCheck, Star, Move3D, Video, Eye
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Property } from '@/types/property';
 import { formatPrice, getPropertyTypeLabel } from '@/data/mockData';
+import ContactAgentButton from '@/components/messaging/ContactAgentButton';
 
 // Lazy load the heavy 3D components
 const PropertyVisualization = lazy(() => import('@/components/virtual-tour/PropertyVisualization'));
@@ -274,14 +275,13 @@ const PropertyDetailModal = ({ property, open, onClose }: PropertyDetailModalPro
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Button variant="hero" className="w-full">
-                        <Phone className="h-4 w-4 mr-2" />
-                        Call Agent
-                      </Button>
-                      <Button variant="outline-sky" className="w-full">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Send Message
-                      </Button>
+                      <ContactAgentButton
+                        agentName={property.agent.name}
+                        agentPhone={property.agent.phone || '+256700000000'}
+                        propertyTitle={property.title}
+                        variant="hero"
+                        className="w-full"
+                      />
                       <Button variant="outline" className="w-full">
                         <Calendar className="h-4 w-4 mr-2" />
                         Schedule Visit

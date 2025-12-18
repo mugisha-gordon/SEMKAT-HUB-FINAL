@@ -12,6 +12,8 @@ import Favorites from "./pages/Favorites";
 import Notifications from "./pages/Notifications";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import AgentDashboard from "./pages/AgentDashboard";
+import UserDashboard from "./pages/UserDashboard";
 import Explore from "./pages/Explore";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -48,6 +50,22 @@ const App = () => (
                   element={
                     <ProtectedRoute requireRole="admin">
                       <Admin />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/agent-dashboard"
+                  element={
+                    <ProtectedRoute requireRole="agent">
+                      <AgentDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <UserDashboard />
                     </ProtectedRoute>
                   }
                 />
