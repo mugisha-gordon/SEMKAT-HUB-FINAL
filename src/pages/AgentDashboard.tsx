@@ -15,7 +15,12 @@ import {
   CheckCircle
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { getUserDocument } from "@/integrations/firebase/users";
+import PropertyPostForm from "@/components/property/PropertyPostForm";
+import VideoPostForm from "@/components/video/VideoPostForm";
+import { getAgentPropertyCounts, getProperties, updateProperty } from "@/integrations/firebase/properties";
+import type { PropertyDocument } from "@/integrations/firebase/properties";
+import { toast } from "sonner";
 
 interface AgentStats {
   totalListings: number;
@@ -27,25 +32,97 @@ interface AgentStats {
 const AgentDashboard = () => {
   const { user, signOut } = useAuth();
   const [stats, setStats] = useState<AgentStats>({
-    totalListings: 12,
-    activeListings: 8,
-    totalViews: 2450,
-    inquiries: 34
+    totalListings: 0,
+    activeListings: 0,
+    totalViews: 0,
+    inquiries: 0
   });
   const [profile, setProfile] = useState<{ full_name: string | null }>({ full_name: null });
+  const [properties, setProperties] = useState<PropertyDocument[]>([]);
+  const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const [updatingPropertyId, setUpdatingPropertyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', user.id)
-        .single();
-      if (data) setProfile(data);
+      try {
+        const [userDoc, counts, latestProperties] = await Promise.all([
+          getUserDocument(user.uid),
+          getAgentPropertyCounts(user.uid),
+          getProperties({ agentId: user.uid, limit: 12 }),
+        ]);
+
+        if (userDoc?.profile) {
+          setProfile({ full_name: userDoc.profile.fullName });
+        }
+
+        setProperties(latestProperties);
+
+        setStats({
+          totalListings: counts.totalListings,
+          activeListings: counts.activeListings,
+          totalViews: 0, // TODO: Implement view tracking
+          inquiries: 0, // TODO: Implement inquiry tracking
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setPropertiesLoading(false);
+      }
     };
-    fetchProfile();
+    fetchData();
   }, [user]);
+
+  const refreshProperties = async () => {
+    if (!user) return;
+    setPropertiesLoading(true);
+    try {
+      const [counts, agentProperties] = await Promise.all([
+        getAgentPropertyCounts(user.uid),
+        getProperties({ agentId: user.uid, limit: 12 }),
+      ]);
+
+      setProperties(agentProperties);
+      setStats({
+        totalListings: counts.totalListings,
+        activeListings: counts.activeListings,
+        totalViews: stats.totalViews,
+        inquiries: stats.inquiries,
+      });
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+    } finally {
+      setPropertiesLoading(false);
+    }
+  };
+
+  const togglePropertyStatus = async (property: PropertyDocument) => {
+    if (!user) return;
+    const nextStatus = property.status === 'available' ? 'sold' : 'available';
+
+    setUpdatingPropertyId(property.id);
+    try {
+      // Optimistic UI update
+      setProperties((prev) => prev.map((p) => (p.id === property.id ? { ...p, status: nextStatus } : p)));
+
+      await updateProperty(property.id, { status: nextStatus });
+      toast.success(`Marked as ${nextStatus.replace('-', ' ')}`);
+
+      // Refresh counts (and list ordering if any)
+      const counts = await getAgentPropertyCounts(user.uid);
+      setStats((prev) => ({
+        ...prev,
+        totalListings: counts.totalListings,
+        activeListings: counts.activeListings,
+      }));
+    } catch (error: any) {
+      // Revert on failure
+      setProperties((prev) => prev.map((p) => (p.id === property.id ? property : p)));
+      toast.error(error?.message || 'Failed to update property status');
+    } finally {
+      setUpdatingPropertyId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-white">
@@ -63,10 +140,8 @@ const AgentDashboard = () => {
               <p className="text-white/60 text-sm mt-1">{user?.email}</p>
             </div>
             <div className="flex gap-3">
-              <Button variant="hero" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Listing
-              </Button>
+              {user && <PropertyPostForm agentId={user.uid} onSuccess={refreshProperties} />}
+              {user && <VideoPostForm onSuccess={() => {}} />}
               <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={signOut}>
                 Sign out
               </Button>
@@ -143,33 +218,50 @@ const AgentDashboard = () => {
               </TabsList>
 
               <TabsContent value="listings" className="mt-6">
-                <div className="space-y-4">
-                  {/* Sample listings */}
-                  {[
-                    { title: '3 Bedroom Villa in Kololo', price: 'UGX 850M', status: 'active', views: 234 },
-                    { title: 'Commercial Space - Kampala Road', price: 'UGX 1.2B', status: 'active', views: 189 },
-                    { title: '5 Acre Land in Wakiso', price: 'UGX 450M', status: 'pending', views: 156 },
-                  ].map((listing, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{listing.title}</h4>
-                        <p className="text-white/60 text-sm">{listing.price}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1 text-white/60 text-sm">
-                          <Eye className="h-4 w-4" />
-                          {listing.views}
+                {propertiesLoading ? (
+                  <p className="text-white/60 text-center py-8">Loading properties...</p>
+                ) : properties.length === 0 ? (
+                  <div className="text-center py-12 text-white/60">
+                    <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No properties posted yet</p>
+                    <p className="text-sm mt-1">Use "Post Property" button to add your first listing</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {properties.map((property) => (
+                      <div key={property.id} className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{property.title}</h4>
+                          <p className="text-white/60 text-sm">{property.currency} {property.price.toLocaleString()}</p>
+                          <p className="text-white/50 text-xs mt-1">{property.location.district}, {property.location.region}</p>
                         </div>
-                        <Badge className={listing.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
-                          {listing.status}
-                        </Badge>
-                        <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                          Edit
-                        </Button>
+                        <div className="flex items-center gap-4">
+                          <Badge className={
+                            property.status === 'available' ? 'bg-green-500/20 text-green-400' : 
+                            property.status === 'sold' ? 'bg-red-500/20 text-red-400' :
+                            property.status === 'under-offer' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-blue-500/20 text-blue-400'
+                          }>
+                            {property.status.replace('-', ' ')}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-white/30 text-white hover:bg-white/10"
+                            onClick={() => togglePropertyStatus(property)}
+                            disabled={updatingPropertyId === property.id}
+                          >
+                            {updatingPropertyId === property.id
+                              ? 'Updating...'
+                              : property.status === 'available'
+                                ? 'Mark Sold'
+                                : 'Mark Available'}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="inquiries" className="mt-6">

@@ -15,8 +15,9 @@ import {
   Settings
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { getUserDocument } from "@/integrations/firebase/users";
 import { Link } from "react-router-dom";
+import VideoPostForm from "@/components/video/VideoPostForm";
 
 const UserDashboard = () => {
   const { user, signOut } = useAuth();
@@ -25,12 +26,14 @@ const UserDashboard = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', user.id)
-        .single();
-      if (data) setProfile(data);
+      try {
+        const userDoc = await getUserDocument(user.uid);
+        if (userDoc?.profile) {
+          setProfile({ full_name: userDoc.profile.fullName });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
     };
     fetchProfile();
   }, [user]);
@@ -41,10 +44,7 @@ const UserDashboard = () => {
     { query: 'Apartments Ntinda', date: '1 week ago' },
   ];
 
-  const savedProperties = [
-    { title: 'Modern Villa in Muyenga', price: 'UGX 1.2B', location: 'Muyenga, Kampala' },
-    { title: '2 Bedroom Apartment', price: 'UGX 350M', location: 'Ntinda, Kampala' },
-  ];
+  const savedProperties: Array<{ title: string; price: string; location: string }> = [];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-white">
@@ -62,6 +62,7 @@ const UserDashboard = () => {
               <p className="text-white/60 text-sm mt-1">{user?.email}</p>
             </div>
             <div className="flex gap-3">
+              <VideoPostForm onSuccess={() => {}} />
               <Link to="/properties">
                 <Button variant="hero" className="gap-2">
                   <Search className="h-4 w-4" />

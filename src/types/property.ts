@@ -28,6 +28,13 @@ export interface Property {
   createdAt: string;
   bedrooms?: number;
   bathrooms?: number;
+  installmentPayment?: {
+    enabled: boolean;
+    depositPercentage?: number;
+    numberOfInstallments?: number;
+    installmentAmount?: number;
+    terms?: string;
+  };
 }
 
 export interface Agent {

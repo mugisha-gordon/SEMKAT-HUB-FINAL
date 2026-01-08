@@ -1,0 +1,84 @@
+mutation SeedData @transaction @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  user_insertMany(data: [
+    {
+      id: "6b29c076-947d-445f-849c-586911b9a174",
+      displayName: "Demo User 1",
+      email: "demo1@example.com",
+      createdAt: "2024-04-26T00:00:00Z"
+    },
+    {
+      id: "7a9d54f4-2c2e-4d7c-8f1a-6b1c7a8a1a9a",
+      displayName: "Demo User 2",
+      email: "demo2@example.com",
+      createdAt: "2024-04-27T00:00:00Z"
+    }
+  ])
+  property_insertMany(data: [
+    {
+      id: "9e0e3a4a-4b3c-4029-9c7e-7a9b5f5d5e60",
+      userId: "6b29c076-947d-445f-849c-586911b9a174",
+      address: "123 Demo Street",
+      status: "active",
+      createdAt: "2024-04-28T00:00:00Z",
+      price: 250000,
+      bedrooms: 3,
+      bathrooms: 2.0,
+      squareFootage: 1500,
+      yearBuilt: 1985,
+      isFavorite: false,
+      description: "A lovely demo property."
+    },
+    {
+      id: "4c8b1a5a-9d4e-41d9-8b7a-3a2c1b8a5a7a",
+      userId: "7a9d54f4-2c2e-4d7c-8f1a-6b1c7a8a1a9a",
+      address: "456 Example Avenue",
+      status: "pending",
+      createdAt: "2024-04-29T00:00:00Z",
+      price: 375000,
+      bedrooms: 4,
+      bathrooms: 2.5,
+      squareFootage: 2200,
+      yearBuilt: 2005,
+      isFavorite: true,
+      description: "An excellent example property."
+    }
+  ])
+  note_insertMany(data: [
+    {
+      id: "2b3b1a5a-9d4e-41d9-8b7a-3a2c1b8a5a7a",
+      propertyId: "9e0e3a4a-4b3c-4029-9c7e-7a9b5f5d5e60",
+      userId: "6b29c076-947d-445f-849c-586911b9a174",
+      content: "Demo note for the first property.",
+      createdAt: "2024-04-30T00:00:00Z"
+    },
+    {
+      id: "8f5b1a5a-9d4e-41d9-8b7a-3a2c1b8a5a7a",
+      propertyId: "4c8b1a5a-9d4e-41d9-8b7a-3a2c1b8a5a7a",
+      userId: "7a9d54f4-2c2e-4d7c-8f1a-6b1c7a8a1a9a",
+      content: "Example note for the second property.",
+      createdAt: "2024-05-01T00:00:00Z"
+    }
+  ])
+  interaction_insertMany(data: [
+    {
+      id: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      propertyId: "9e0e3a4a-4b3c-4029-9c7e-7a9b5f5d5e60",
+      userId: "6b29c076-947d-445f-849c-586911b9a174",
+      agentId: "6b29c076-947d-445f-849c-586911b9a174",
+      type: "viewing",
+      details: "Demo User viewed the property.",
+      interactionDate: "2024-05-02T00:00:00Z",
+      createdAt: "2024-05-02T00:00:00Z"
+    },
+    {
+      id: "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
+      propertyId: "4c8b1a5a-9d4e-41d9-8b7a-3a2c1b8a5a7a",
+      userId: "7a9d54f4-2c2e-4d7c-8f1a-6b1c7a8a1a9a",
+      agentId: "7a9d54f4-2c2e-4d7c-8f1a-6b1c7a8a1a9a",
+      type: "offer",
+      details: "Example User made an offer.",
+      interactionDate: "2024-05-03T00:00:00Z",
+      createdAt: "2024-05-03T00:00:00Z"
+    }
+  ])
+}

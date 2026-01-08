@@ -1,0 +1,26 @@
+mutation AddNewProperty($address: String!, $bathrooms: Float, $bedrooms: Int, $description: String, $isFavorite: Boolean, $price: Int64, $squareFootage: Int, $status: String!, $yearBuilt: Int) @auth(level: USER) {
+  property_insert(data: {address: $address, bathrooms: $bathrooms, bedrooms: $bedrooms, description: $description, isFavorite: $isFavorite, price: $price, squareFootage: $squareFootage, status: $status, yearBuilt: $yearBuilt, userId_expr: "auth.uid"})
+}
+
+query GetPropertiesForCurrentUser @auth(level: USER) {
+  properties(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    address
+    bathrooms
+    bedrooms
+    description
+    isFavorite
+    price
+    squareFootage
+    status
+    yearBuilt
+  }
+}
+
+mutation UpdateIsFavorite($id: UUID!, $isFavorite: Boolean) @auth(level: USER) {
+  property_update(key: {id: $id}, data: {isFavorite: $isFavorite})
+}
+
+mutation DeleteProperty($id: UUID!) @auth(level: USER) {
+  property_delete(key: {id: $id})
+}

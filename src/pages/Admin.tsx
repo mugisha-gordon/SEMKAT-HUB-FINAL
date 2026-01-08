@@ -9,20 +9,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ShieldCheck, Users, FileText, Bell, UserPlus, Check, X, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getAgentApplications, approveAgentApplication, rejectAgentApplication } from "@/integrations/firebase/agentApplications";
+import { updateUserRole, getAllAgents, deleteUserAndData, updateUserDocument } from "@/integrations/firebase/users";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserDocument } from "@/integrations/firebase/users";
+import type { AgentApplicationDocument } from "@/integrations/firebase/types";
+import type { UserDocument } from "@/integrations/firebase/types";
+import { Trash2, AlertTriangle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { firebaseConfig } from "@/integrations/firebase/config";
 
 interface AgentApplication {
   id: string;
-  user_id: string;
-  full_name: string;
+  userId: string;
+  fullName: string;
   phone: string;
   email: string;
   company: string | null;
-  license_number: string | null;
-  experience_years: number | null;
+  licenseNumber: string | null;
+  experienceYears: number | null;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
+  createdAt: any; // Timestamp from Firestore
 }
 
 const AdminDashboard = () => {
@@ -38,22 +48,80 @@ const AdminDashboard = () => {
     company: '',
   });
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [agents, setAgents] = useState<UserDocument[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<UserDocument | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchApplications();
+    fetchAgents();
   }, []);
+
+  const fetchAgents = async () => {
+    setAgentsLoading(true);
+    try {
+      const allAgents = await getAllAgents(50);
+      setAgents(allAgents.filter(a => a.role !== 'admin')); // Don't show admins in agents list
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+      toast.error('Failed to fetch agents');
+    } finally {
+      setAgentsLoading(false);
+    }
+  };
+
+  const handleDeleteAgent = (agent: UserDocument) => {
+    setAgentToDelete(agent);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteAgent = async () => {
+    if (!agentToDelete || !user?.uid) return;
+
+    setDeleting(true);
+    try {
+      // Delete user data (properties, videos, user document)
+      await deleteUserAndData(agentToDelete.userId);
+      
+      // Note: To delete Firebase Auth user, you need Admin SDK on backend
+      // For now, we'll just delete the Firestore data
+      // In production, create a Cloud Function to handle auth user deletion
+      
+      toast.success('Agent and all associated data deleted successfully');
+      setDeleteDialogOpen(false);
+      setAgentToDelete(null);
+      fetchAgents();
+      fetchApplications();
+    } catch (error: any) {
+      console.error('Error deleting agent:', error);
+      toast.error(error.message || 'Failed to delete agent');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchApplications = async () => {
     try {
-      const { data, error } = await supabase
-        .from('agent_applications')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setApplications((data as AgentApplication[]) || []);
+      const apps = await getAgentApplications(undefined, undefined, 50);
+      // Transform Firestore documents to match component interface
+      const transformedApps: AgentApplication[] = apps.map(app => ({
+        id: app.id,
+        userId: app.userId,
+        fullName: app.fullName,
+        phone: app.phone,
+        email: app.email,
+        company: app.company,
+        licenseNumber: app.licenseNumber,
+        experienceYears: app.experienceYears,
+        status: app.status,
+        createdAt: app.createdAt,
+      }));
+      setApplications(transformedApps);
     } catch (err) {
       console.error('Error fetching applications:', err);
+      toast.error('Failed to fetch applications');
     } finally {
       setLoading(false);
     }
@@ -61,39 +129,24 @@ const AdminDashboard = () => {
 
   const handleApplicationAction = async (applicationId: string, userId: string, action: 'approved' | 'rejected') => {
     try {
-      // Update application status
-      const { error: updateError } = await supabase
-        .from('agent_applications')
-        .update({ 
-          status: action,
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', applicationId);
-      
-      if (updateError) throw updateError;
+      if (!user?.uid) {
+        throw new Error('User not authenticated');
+      }
 
-      // If approved, add agent role
       if (action === 'approved') {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ 
-            user_id: userId, 
-            role: 'agent' as const,
-            approved_by: user?.id,
-            approved_at: new Date().toISOString()
-          });
-        
-        if (roleError && !roleError.message.includes('duplicate')) {
-          throw roleError;
-        }
+        // Approve application and update user role
+        await approveAgentApplication(applicationId, userId, user.uid);
+        await updateUserRole(userId, 'agent', user.uid);
+      } else {
+        // Reject application
+        await rejectAgentApplication(applicationId, user.uid);
       }
 
       toast.success(`Application ${action}`);
       fetchApplications();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating application:', err);
-      toast.error('Failed to update application');
+      toast.error(err.message || 'Failed to update application');
     }
   };
 
@@ -102,36 +155,42 @@ const AdminDashboard = () => {
     setRegisterLoading(true);
 
     try {
-      // Create user with Supabase auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: registerForm.email,
-        password: registerForm.password,
-        options: {
-          data: { full_name: registerForm.fullName },
-          emailRedirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('User creation failed');
-
-      // Add agent role directly (admin is registering)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({ 
-          user_id: authData.user.id, 
-          role: 'agent' as const,
-          approved_by: user?.id,
-          approved_at: new Date().toISOString()
-        });
-
-      if (roleError && !roleError.message.includes('duplicate')) {
-        throw roleError;
+      if (!user?.uid) {
+        throw new Error('User not authenticated');
       }
+
+      const secondaryApp = getApps().find((a) => a.name === 'secondary') || initializeApp(firebaseConfig, 'secondary');
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        registerForm.email,
+        registerForm.password
+      );
+
+      // Create user document with agent role
+      await createUserDocument(userCredential.user.uid, registerForm.email, registerForm.fullName);
+
+      if (registerForm.phone || registerForm.company) {
+        await updateUserDocument(userCredential.user.uid, {
+          profile: {
+            phone: registerForm.phone || null,
+          },
+        });
+      }
+      
+      // Update role to agent (admin is registering)
+      await updateUserRole(userCredential.user.uid, 'agent', user.uid);
+
+      await secondaryAuth.signOut();
 
       toast.success('Agent registered successfully');
       setIsRegisterOpen(false);
       setRegisterForm({ email: '', password: '', fullName: '', phone: '', company: '' });
+
+      fetchAgents();
+      fetchApplications();
     } catch (err: any) {
       console.error('Error registering agent:', err);
       toast.error(err.message || 'Failed to register agent');
@@ -268,6 +327,51 @@ const AdminDashboard = () => {
             </Card>
           </div>
 
+          {/* Manage Agents Section */}
+          <Card className="bg-white/5 border-white/10 text-white p-6 mb-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Users className="h-5 w-5 text-sky-300" />
+              <h3 className="font-heading text-xl font-semibold">Manage Agents</h3>
+            </div>
+            
+            {agentsLoading ? (
+              <p className="text-white/60 text-center py-8">Loading agents...</p>
+            ) : agents.length === 0 ? (
+              <p className="text-white/60 text-center py-8">No agents found</p>
+            ) : (
+              <div className="space-y-3">
+                {agents.map((agent) => (
+                  <div
+                    key={agent.userId}
+                    className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="font-semibold">{agent.profile.fullName || 'Unknown'}</h4>
+                        <Badge variant="outline" className="border-green-500/50 text-green-400">
+                          Agent
+                        </Badge>
+                      </div>
+                      <p className="text-white/60 text-sm">{agent.email}</p>
+                      {agent.profile.phone && (
+                        <p className="text-white/50 text-xs mt-1">Phone: {agent.profile.phone}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+                      onClick={() => handleDeleteAgent(agent)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Agent Applications Section */}
           <Card className="bg-white/5 border-white/10 text-white p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -305,7 +409,7 @@ const AdminDashboard = () => {
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-1">
-                                <h4 className="font-semibold">{app.full_name}</h4>
+                                <h4 className="font-semibold">{app.fullName}</h4>
                                 <Badge 
                                   variant="outline" 
                                   className={
@@ -331,7 +435,7 @@ const AdminDashboard = () => {
                                   size="sm"
                                   variant="outline"
                                   className="border-green-500/50 text-green-400 hover:bg-green-500/20"
-                                  onClick={() => handleApplicationAction(app.id, app.user_id, 'approved')}
+                                  onClick={() => handleApplicationAction(app.id, app.userId, 'approved')}
                                 >
                                   <Check className="h-4 w-4 mr-1" />
                                   Approve
@@ -340,7 +444,7 @@ const AdminDashboard = () => {
                                   size="sm"
                                   variant="outline"
                                   className="border-red-500/50 text-red-400 hover:bg-red-500/20"
-                                  onClick={() => handleApplicationAction(app.id, app.user_id, 'rejected')}
+                                  onClick={() => handleApplicationAction(app.id, app.userId, 'rejected')}
                                 >
                                   <X className="h-4 w-4 mr-1" />
                                   Reject
@@ -357,6 +461,40 @@ const AdminDashboard = () => {
           </Card>
         </div>
       </main>
+
+      {/* Delete Agent Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              Delete Agent
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/70">
+              Are you sure you want to delete {agentToDelete?.profile.fullName || agentToDelete?.email}? 
+              This will permanently delete:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>All properties posted by this agent</li>
+                <li>All videos posted by this agent</li>
+                <li>The agent's account and profile</li>
+              </ul>
+              <strong className="text-red-400">This action cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/30 text-white hover:bg-white/10">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteAgent}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting...' : 'Delete Agent'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

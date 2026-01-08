@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, Grid3X3, List, MapPin, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -6,9 +6,12 @@ import PropertyCard from '@/components/property/PropertyCard';
 import PropertyDetailModal from '@/components/property/PropertyDetailModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { properties } from '@/data/mockData';
 import { Property, PropertyType, PropertyStatus } from '@/types/property';
 import { cn } from '@/lib/utils';
+import { getProperties } from '@/integrations/firebase/properties';
+import type { PropertyDocument } from '@/integrations/firebase/properties';
+import { getApprovedAgents } from '@/integrations/firebase/users';
+import type { Agent } from '@/types/property';
 
 const propertyTypes: { value: PropertyType | 'all'; label: string }[] = [
   { value: 'all', label: 'All Types' },
@@ -40,9 +43,80 @@ const Properties = () => {
   const [selectedPriceRange, setSelectedPriceRange] = useState(priceRanges[0]);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [firestoreProperties, setFirestoreProperties] = useState<PropertyDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [agentData, setAgentData] = useState<{ [agentId: string]: Agent }>({});
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const [approvedAgents, allProps] = await Promise.all([
+          getApprovedAgents(300),
+          getProperties({ limit: 600 }),
+        ]);
+        const approvedAgentIds = new Set(approvedAgents.map((a) => a.userId));
+
+        const props = allProps.filter((p) => approvedAgentIds.has(p.agentId));
+        setFirestoreProperties(props);
+
+        const listingCounts = props.reduce<Record<string, number>>((acc, p) => {
+          acc[p.agentId] = (acc[p.agentId] || 0) + 1;
+          return acc;
+        }, {});
+
+        const agents: { [agentId: string]: Agent } = {};
+        for (const u of approvedAgents) {
+          agents[u.userId] = {
+            id: u.userId,
+            name: u.profile.fullName || 'Unknown Agent',
+            avatar:
+              u.profile.avatarUrl ||
+              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+            phone: u.profile.phone || '',
+            email: u.email,
+            rating: 4.5,
+            totalListings: listingCounts[u.userId] || 0,
+          };
+        }
+
+        setAgentData(agents);
+      } catch (error) {
+        console.error('Error fetching properties:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  // Convert Firestore properties to Property type for compatibility
+  const convertedProperties: Property[] = useMemo(() => {
+    return firestoreProperties
+      .map(prop => ({
+      id: prop.id,
+      title: prop.title,
+      type: prop.type,
+      status: prop.status,
+      price: prop.price,
+      currency: prop.currency,
+      location: prop.location,
+      size: prop.size,
+      images: prop.images,
+      description: prop.description,
+      features: prop.features,
+      hasTitle: prop.hasTitle,
+      isFeatured: prop.isFeatured,
+      bedrooms: prop.bedrooms,
+      bathrooms: prop.bathrooms,
+      agent: agentData[prop.agentId],
+      createdAt: prop.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
+    }))
+      .filter((p) => !!p.agent);
+  }, [firestoreProperties, agentData]);
 
   const filteredProperties = useMemo(() => {
-    return properties.filter((property) => {
+    return convertedProperties.filter((property) => {
       // Type filter
       if (selectedType !== 'all' && property.type !== selectedType) return false;
       
@@ -69,7 +143,7 @@ const Properties = () => {
       
       return true;
     });
-  }, [selectedType, selectedLocation, selectedPriceRange, searchQuery]);
+  }, [convertedProperties, selectedType, selectedLocation, selectedPriceRange, searchQuery]);
 
   const activeFiltersCount = [
     selectedType !== 'all',
@@ -249,7 +323,12 @@ const Properties = () => {
           </div>
 
           {/* Property grid */}
-          {filteredProperties.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading properties...</p>
+            </div>
+          ) : filteredProperties.length > 0 ? (
             <div className={cn(
               "grid gap-6",
               viewMode === 'grid' 

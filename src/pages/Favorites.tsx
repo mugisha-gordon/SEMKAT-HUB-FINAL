@@ -5,14 +5,13 @@ import PropertyCard from "@/components/property/PropertyCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Sparkles, LogIn } from "lucide-react";
-import { properties } from "@/data/mockData";
 import { useAuth } from "@/context/AuthContext";
 
 const Favorites = () => {
   const { user, loading } = useAuth();
   
   // Placeholder: using featured properties until persistence is wired.
-  const favoriteProperties = useMemo(() => properties.filter((p) => p.isFeatured), []);
+  const favoriteProperties = useMemo(() => [], []);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

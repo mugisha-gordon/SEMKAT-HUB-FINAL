@@ -1,11 +1,57 @@
-import { Star, Phone, Mail, MapPin, Building } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Star, MapPin, Building } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { agents } from '@/data/mockData';
+import { getApprovedAgents } from '@/integrations/firebase/users';
+import { getProperties } from '@/integrations/firebase/properties';
+import type { Agent } from '@/types/property';
+import MessageAgentButton from '@/components/messaging/MessageAgentButton';
 
 const Agents = () => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const [approvedAgents, allProps] = await Promise.all([
+          getApprovedAgents(200),
+          getProperties({ limit: 600 }),
+        ]);
+
+        const approvedAgentIds = new Set(approvedAgents.map((a) => a.userId));
+        const props = allProps.filter((p) => approvedAgentIds.has(p.agentId));
+
+        const listingCounts = props.reduce<Record<string, number>>((acc, p) => {
+          acc[p.agentId] = (acc[p.agentId] || 0) + 1;
+          return acc;
+        }, {});
+
+        const mapped = approvedAgents.map((u) => ({
+          id: u.userId,
+          name: u.profile.fullName || 'Agent',
+          avatar:
+            u.profile.avatarUrl ||
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+          phone: u.profile.phone || '',
+          email: u.email,
+          rating: 4.5,
+          totalListings: listingCounts[u.userId] || 0,
+        }));
+
+        setAgents(mapped);
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAgents();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -47,76 +93,73 @@ const Agents = () => {
         {/* Agents grid */}
         <section className="py-16 bg-muted/30">
           <div className="container">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {agents.map((agent, index) => (
-                <Card 
-                  key={agent.id} 
-                  variant="elevated" 
-                  className="overflow-hidden"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {/* Header with avatar */}
-                  <div className="relative h-32 bg-gradient-hero">
-                    <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-                      <img
-                        src={agent.avatar}
-                        alt={agent.name}
-                        className="w-24 h-24 rounded-full object-cover ring-4 ring-background shadow-lg"
+            {loading ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {agents.map((agent, index) => (
+                  <Card 
+                    key={agent.id} 
+                    variant="elevated" 
+                    className="overflow-hidden"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    {/* Header with avatar */}
+                    <div className="relative h-32 bg-gradient-hero">
+                      <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
+                        <img
+                          src={agent.avatar}
+                          alt={agent.name}
+                          className="w-24 h-24 rounded-full object-cover ring-4 ring-background shadow-lg"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="pt-14 pb-6 px-6 text-center">
+                      <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
+                        {agent.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-3">Real Estate Consultant</p>
+                      
+                      {/* Rating */}
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <div className="flex">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star 
+                              key={i} 
+                              className={`h-4 w-4 ${
+                                i < Math.floor(agent.rating) 
+                                  ? 'fill-amber-400 text-amber-400' 
+                                  : 'text-muted'
+                              }`} 
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-medium">{agent.rating}</span>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex justify-center gap-4 mb-4 text-sm">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Building className="h-4 w-4" />
+                          <span>{agent.totalListings} listings</span>
+                        </div>
+                      </div>
+
+                      <MessageAgentButton
+                        agentId={agent.id}
+                        agentName={agent.name}
+                        variant="hero"
+                        className="w-full"
                       />
                     </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="pt-14 pb-6 px-6 text-center">
-                    <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
-                      {agent.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">Real Estate Consultant</p>
-                    
-                    {/* Rating */}
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star 
-                            key={i} 
-                            className={`h-4 w-4 ${
-                              i < Math.floor(agent.rating) 
-                                ? 'fill-amber-400 text-amber-400' 
-                                : 'text-muted'
-                            }`} 
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm font-medium">{agent.rating}</span>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex justify-center gap-4 mb-4 text-sm">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Building className="h-4 w-4" />
-                        <span>{agent.totalListings} listings</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1" asChild>
-                        <a href={`tel:${agent.phone}`}>
-                          <Phone className="h-4 w-4 mr-1" />
-                          Call
-                        </a>
-                      </Button>
-                      <Button variant="sky" size="sm" className="flex-1" asChild>
-                        <a href={`mailto:${agent.email}`}>
-                          <Mail className="h-4 w-4 mr-1" />
-                          Email
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

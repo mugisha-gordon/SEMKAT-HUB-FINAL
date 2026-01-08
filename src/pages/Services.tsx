@@ -193,12 +193,12 @@ const Services = () => {
                 Our expert team is ready to guide you through the best options for your specific needs.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://wa.me/256700123456" target="_blank" rel="noopener noreferrer">
+                <Link to="/agents">
                   <Button variant="hero" size="lg">
                     <MessageCircle className="h-5 w-5 mr-2" />
-                    Chat with Us
+                    Message an Agent
                   </Button>
-                </a>
+                </Link>
                 <a href="tel:+256700123456">
                   <Button variant="outline" size="lg">
                     <Phone className="h-5 w-5 mr-2" />

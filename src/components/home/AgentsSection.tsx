@@ -1,10 +1,58 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ArrowRight, Phone, Mail } from 'lucide-react';
+import { Star, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { agents } from '@/data/mockData';
+import { getApprovedAgents } from '@/integrations/firebase/users';
+import { getAgentPropertyCounts } from '@/integrations/firebase/properties';
+import type { Agent } from '@/types/property';
+import MessageAgentButton from '@/components/messaging/MessageAgentButton';
 
 const AgentsSection = () => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const approvedAgents = await getApprovedAgents(4);
+
+        const countsByAgent = await Promise.all(
+          approvedAgents.map(async (a) => {
+            try {
+              const counts = await getAgentPropertyCounts(a.userId);
+              return [a.userId, counts.totalListings] as const;
+            } catch {
+              return [a.userId, 0] as const;
+            }
+          })
+        );
+
+        const listingCounts = countsByAgent.reduce<Record<string, number>>((acc, [agentId, total]) => {
+          acc[agentId] = total;
+          return acc;
+        }, {});
+
+        const mapped = approvedAgents.map((u) => ({
+          id: u.userId,
+          name: u.profile.fullName || 'Agent',
+          avatar:
+            u.profile.avatarUrl ||
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+          phone: u.profile.phone || '',
+          email: u.email,
+          rating: 4.5,
+          totalListings: listingCounts[u.userId] || 0,
+        }));
+
+        setAgents(mapped);
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+      }
+    };
+
+    fetchAgents();
+  }, []);
+
   return (
     <section className="py-20 bg-muted/30">
       <div className="container">
@@ -55,18 +103,12 @@ const AgentsSection = () => {
                 <span>{agent.totalListings} listings</span>
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="flex-1" asChild>
-                  <a href={`tel:${agent.phone}`}>
-                    <Phone className="h-4 w-4" />
-                  </a>
-                </Button>
-                <Button variant="ghost" size="sm" className="flex-1" asChild>
-                  <a href={`mailto:${agent.email}`}>
-                    <Mail className="h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
+              <MessageAgentButton
+                agentId={agent.id}
+                agentName={agent.name}
+                variant="outline"
+                className="w-full"
+              />
             </Card>
           ))}
         </div>

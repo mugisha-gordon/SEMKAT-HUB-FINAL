@@ -1,7 +1,6 @@
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import ThemeToggle from "@/components/ui/theme-toggle";
 import { Toggle } from "@/components/ui/toggle";
 import { Bell, Globe2, ShieldCheck } from "lucide-react";
 
@@ -26,8 +25,13 @@ const Settings = () => {
               <ShieldCheck className="h-5 w-5 text-sky-300" />
               <h2 className="font-heading text-xl font-semibold">Appearance</h2>
             </div>
-            <p className="text-white/70 text-sm">Switch between light, dark, or follow your device. Your choice is saved.</p>
-            <ThemeToggle />
+            <p className="text-white/70 text-sm">Dark theme is enabled for optimal viewing experience.</p>
+            <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-semkat-orange"></div>
+                <span className="text-white/80">Dark Mode Active</span>
+              </div>
+            </div>
           </Card>
 
           <Card className="bg-white/5 border-white/10 text-white p-6 space-y-4">

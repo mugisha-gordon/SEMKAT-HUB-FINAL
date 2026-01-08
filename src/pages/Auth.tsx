@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Lock, UserPlus, Info, Mail, Phone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Auth = () => {
@@ -18,9 +17,32 @@ const Auth = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as { state?: { from?: string } };
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  const getRoleHome = (r: typeof role) => {
+    if (r === 'admin') return '/admin';
+    if (r === 'agent') return '/agent-dashboard';
+    return '/dashboard';
+  };
+
+  const from = location.state?.from;
+
+  useEffect(() => {
+    if (!pendingRedirect) return;
+    if (authLoading) return;
+    if (!user) return;
+
+    const roleHome = getRoleHome(role);
+    const safeFrom = from && from !== '/auth' ? from : null;
+
+    // Admins always go to /admin
+    const target = role === 'admin' ? '/admin' : safeFrom || roleHome;
+    navigate(target, { replace: true });
+    setPendingRedirect(false);
+  }, [pendingRedirect, authLoading, user, role, from, navigate]);
 
   const handleLogin = async () => {
     setError(null);
@@ -31,7 +53,7 @@ const Auth = () => {
       setError(err);
       return;
     }
-    navigate(location.state?.from || "/");
+    setPendingRedirect(true);
   };
 
   const handleRegister = async () => {
@@ -55,15 +77,12 @@ const Auth = () => {
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
-      if (error) throw error;
+      const { error } = await signInWithGoogle();
+      if (error) throw new Error(error);
+      setPendingRedirect(true);
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google');
+    } finally {
       setLoading(false);
     }
   };
@@ -91,7 +110,7 @@ const Auth = () => {
                   <Sparkles className="h-4 w-4 text-sky-300" /> Save your favorite properties
                 </span>
                 <span className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4 text-green-300" /> Connect with verified agents via WhatsApp
+                  <UserPlus className="h-4 w-4 text-green-300" /> Connect with verified agents via in-app chat
                 </span>
               </div>
               

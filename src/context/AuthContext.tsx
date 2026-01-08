@@ -1,104 +1,129 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  type User as FirebaseUser,
+} from "firebase/auth";
+import { auth } from "@/integrations/firebase/client";
+import { createUserDocument, getUserDocument } from "@/integrations/firebase/users";
 
 type Role = "admin" | "agent" | "user";
 
 interface AuthContextValue {
-  user: User | null;
-  session: Session | null;
+  user: FirebaseUser | null;
+  session: FirebaseUser | null; // Firebase doesn't have separate session object, using user
   role: Role | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch role from database
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_user_role', { _user_id: userId });
-      if (!error && data) {
-        setRole(data as Role);
-      } else {
-        setRole('user'); // Default role
-      }
-    } catch {
-      setRole('user');
+  const deriveRoleFromUserDoc = (userDoc: any): Role => {
+    const docRole = userDoc?.role;
+    if (docRole === 'admin' || docRole === 'agent' || docRole === 'user') {
+      return docRole;
     }
+    return 'user';
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
       
-      if (event === "SIGNED_OUT") {
-        setUser(null);
-        setSession(null);
+      if (firebaseUser) {
+        // Check if user document exists, create if not (for existing users)
+        const userDoc = await getUserDocument(firebaseUser.uid);
+        if (!userDoc) {
+          // User exists in Auth but not in Firestore - create document
+          try {
+            await createUserDocument(
+              firebaseUser.uid,
+              firebaseUser.email || '',
+              firebaseUser.displayName || undefined
+            );
+            setRole('user');
+          } catch (error) {
+            console.error('Error creating user document:', error);
+            setRole('user');
+          }
+        } else {
+          setRole(deriveRoleFromUserDoc(userDoc));
+        }
+      } else {
         setRole(null);
-      } else if (newSession?.user) {
-        // Defer role fetch to avoid deadlock
-        setTimeout(() => {
-          fetchUserRole(newSession.user.id);
-        }, 0);
       }
+      
       setLoading(false);
     });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) {
-        fetchUserRole(data.session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message };
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      return { error: undefined };
+    } catch (error: any) {
+      return { error: error.message };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/`
-      },
-    });
-    return { error: error?.message };
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Create user document in Firestore
+      await createUserDocument(userCredential.user.uid, email, fullName);
+      return { error: undefined };
+    } catch (error: any) {
+      return { error: error.message };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await firebaseSignOut(auth);
+  };
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      // Check if user document exists, create if not (first-time Google login)
+      const userDoc = await getUserDocument(result.user.uid);
+      if (!userDoc) {
+        await createUserDocument(
+          result.user.uid,
+          result.user.email || '',
+          result.user.displayName || undefined
+        );
+      }
+      return { error: undefined };
+    } catch (error: any) {
+      return { error: error.message };
+    }
   };
 
   const value: AuthContextValue = {
     user,
-    session,
+    session: user, // Firebase uses user object as session
     role,
     loading,
     signIn,
     signUp,
     signOut,
+    signInWithGoogle,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -70,9 +70,9 @@ const Header = () => {
       {/* Main header */}
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex items-center justify-center h-14 w-14 bg-gradient-hero rounded-xl shadow-md">
+          <div className="flex items-center justify-center h-14 w-14  shadow-md">
             <img 
-              src="/LOGO.svg" 
+              src="/LOGO.png" 
               alt="Semkat Group Uganda Limited" 
               className="h-10 w-10 object-contain"
               onError={(e) => {

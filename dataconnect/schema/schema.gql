@@ -1,0 +1,45 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+}
+
+type Property @table {
+  user: User!
+  address: String!
+  status: String!
+  createdAt: Timestamp!
+  price: Int64
+  bedrooms: Int
+  bathrooms: Float
+  squareFootage: Int
+  yearBuilt: Int
+  description: String
+  isFavorite: Boolean
+}
+
+type Note @table {
+  user: User!
+  property: Property!
+  content: String!
+  createdAt: Timestamp!
+}
+
+type Agent @table {
+  name: String!
+  createdAt: Timestamp!
+  email: String
+  phoneNumber: String
+  company: String
+}
+
+type Interaction @table {
+  user: User!
+  property: Property!
+  agent: Agent!
+  type: String!
+  interactionDate: Timestamp!
+  createdAt: Timestamp!
+  details: String
+}

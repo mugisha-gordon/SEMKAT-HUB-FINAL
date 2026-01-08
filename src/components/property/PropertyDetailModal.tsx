@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Property } from '@/types/property';
 import { formatPrice, getPropertyTypeLabel } from '@/data/mockData';
-import ContactAgentButton from '@/components/messaging/ContactAgentButton';
+import MessageAgentButton from '@/components/messaging/MessageAgentButton';
 
 // Lazy load the heavy 3D components
 const PropertyVisualization = lazy(() => import('@/components/virtual-tour/PropertyVisualization'));
@@ -275,10 +275,9 @@ const PropertyDetailModal = ({ property, open, onClose }: PropertyDetailModalPro
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <ContactAgentButton
+                      <MessageAgentButton
+                        agentId={property.agent.id}
                         agentName={property.agent.name}
-                        agentPhone={property.agent.phone || '+256700000000'}
-                        propertyTitle={property.title}
                         variant="hero"
                         className="w-full"
                       />

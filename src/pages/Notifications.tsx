@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
@@ -5,33 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bell, CheckCircle2, AlertTriangle, Home, FileText, LogIn } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-
-const mockNotifications = [
-  {
-    id: "n1",
-    title: "Price adjustment",
-    description: "Kololo villa reduced by 5%.",
-    time: "5m ago",
-    type: "info",
-    icon: Home,
-  },
-  {
-    id: "n2",
-    title: "Documentation verified",
-    description: "Title deed uploaded for Mukono agricultural land.",
-    time: "25m ago",
-    type: "success",
-    icon: FileText,
-  },
-  {
-    id: "n3",
-    title: "Schedule visit",
-    description: "Confirm site visit for Entebbe bungalow this Friday.",
-    time: "1h ago",
-    type: "warning",
-    icon: AlertTriangle,
-  },
-];
+import {
+  getNotificationsForUser,
+  markNotificationAsRead,
+  type NotificationDocument,
+  type NotificationType,
+} from "@/integrations/firebase/notifications";
 
 const variantStyles: Record<string, string> = {
   info: "from-semkat-sky/20 to-semkat-sky/5 border-semkat-sky/30",
@@ -41,6 +21,42 @@ const variantStyles: Record<string, string> = {
 
 const Notifications = () => {
   const { user, loading } = useAuth();
+  const [items, setItems] = useState<NotificationDocument[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+
+  const iconByType = useMemo(
+    () =>
+      ({
+        info: Home,
+        success: FileText,
+        warning: AlertTriangle,
+      }) satisfies Record<NotificationType, any>,
+    []
+  );
+
+  useEffect(() => {
+    if (!user) {
+      setItems([]);
+      return;
+    }
+
+    setItemsLoading(true);
+    getNotificationsForUser(user.uid, { limit: 50 })
+      .then(setItems)
+      .catch((e) => {
+        console.error("Error loading notifications", e);
+      })
+      .finally(() => setItemsLoading(false));
+  }, [user]);
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await markNotificationAsRead(id);
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? (n as any).readAt } : n)));
+    } catch (e) {
+      console.error("Error marking notification as read", e);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -80,10 +96,28 @@ const Notifications = () => {
                 </Button>
               </div>
             </Card>
+          ) : itemsLoading ? (
+            <Card className="bg-card border p-10 text-center space-y-4">
+              <div className="mx-auto w-12 h-12 border-4 border-semkat-sky border-t-transparent rounded-full animate-spin" />
+              <p className="text-muted-foreground">Loading notifications...</p>
+            </Card>
           ) : (
             <>
-              {mockNotifications.map((item) => {
-                const Icon = item.icon;
+              {items.length === 0 ? (
+                <Card className="bg-card border p-10 text-center space-y-4">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-semkat-sky-light">
+                    <Bell className="h-8 w-8 text-secondary" />
+                  </div>
+                  <h3 className="font-heading text-2xl font-semibold text-foreground">No notifications yet</h3>
+                  <p className="text-muted-foreground max-w-lg mx-auto">
+                    When there are updates about properties, visits, or your account, you’ll see them here.
+                  </p>
+                </Card>
+              ) : (
+                items.map((item) => {
+                  const Icon = iconByType[item.type];
+                  const timeLabel = item.createdAt?.toDate?.().toLocaleString?.() || "";
+                  const isRead = Boolean(item.readAt);
                 return (
                   <Card
                     key={item.id}
@@ -95,21 +129,35 @@ const Notifications = () => {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-foreground">{item.title}</h3>
+                          <Link to={`/notifications/${item.id}`} className="font-semibold text-foreground hover:underline">
+                            {item.title}
+                          </Link>
                           <Badge variant="outline" className="border-border text-muted-foreground">
-                            {item.time}
+                            {timeLabel}
                           </Badge>
+                          {!isRead && (
+                            <Badge className="bg-semkat-orange/20 text-semkat-orange border border-semkat-orange/30">
+                              New
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-muted-foreground text-sm mt-1">{item.description}</p>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handleMarkRead(item.id)}
+                        disabled={isRead}
+                      >
                         <CheckCircle2 className="h-5 w-5 mr-1" />
-                        Mark read
+                        {isRead ? "Read" : "Mark read"}
                       </Button>
                     </div>
                   </Card>
                 );
-              })}
+                })
+              )}
 
               <Card className="bg-card border p-6 flex items-center justify-between">
                 <div>
